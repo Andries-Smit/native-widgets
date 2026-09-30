@@ -21,8 +21,11 @@
   "dependencies": {
     "@mendix/piw-native-utils-internal": "*",
     "@mendix/piw-utils-internal": "*",
+    "react-native-nitro-image": "0.15.2",
+    "react-native-nitro-modules": "0.37.0",
     "react-native-svg": "15.15.4",
-    "react-native-vision-camera": "4.7.3"
+    "react-native-vision-camera": "5.2.3",
+    "react-native-vision-camera-barcode-scanner": "5.2.3"
   },
   "devDependencies": {
     "@mendix/pluggable-widgets-tools": "*"

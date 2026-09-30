@@ -5,14 +5,17 @@ import { View } from "react-native";
 import { BarcodeScanner, Props } from "../BarcodeScanner";
 import { defaultBarcodeScannerStyle } from "../ui/styles";
 
-let mockOnCodeScanned: ((codes: Array<{ value: string }>) => void) | undefined;
+let mockOnBarcodeScanned: ((codes: Array<{ rawValue: string }>) => void) | undefined;
 
 jest.mock("react-native-vision-camera", () => ({
     Camera: ({ children, ...props }: any) => <View {...props}>{children}</View>,
-    useCameraDevice: () => "mock-device",
-    useCodeScanner: (options: any) => {
-        mockOnCodeScanned = options.onCodeScanned;
-        return "mockCodeScanner";
+    useCameraDevice: () => "mock-device"
+}));
+
+jest.mock("react-native-vision-camera-barcode-scanner", () => ({
+    useBarcodeScannerOutput: (options: any) => {
+        mockOnBarcodeScanned = options.onBarcodeScanned;
+        return { currentResolution: { width: 1920, height: 1080 } };
     }
 }));
 
@@ -56,14 +59,14 @@ describe("BarcodeScanner", () => {
         render(<BarcodeScanner {...defaultProps} onDetect={onDetectAction} />);
 
         // Simulate scanning
-        mockOnCodeScanned?.([{ value: "value" }]);
+        mockOnBarcodeScanned?.([{ rawValue: "value" }]);
         jest.advanceTimersByTime(2000);
 
         expect(defaultProps.barcode.setValue).toHaveBeenCalledWith("value");
         expect(onDetectAction.execute).toHaveBeenCalledTimes(1);
 
         // Another scan
-        mockOnCodeScanned?.([{ value: "value1" }]);
+        mockOnBarcodeScanned?.([{ rawValue: "value1" }]);
         jest.advanceTimersByTime(2000);
 
         expect(defaultProps.barcode.setValue).toHaveBeenCalledWith("value1");

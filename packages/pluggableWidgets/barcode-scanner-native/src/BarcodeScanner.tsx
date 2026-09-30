@@ -1,8 +1,9 @@
 import { flattenStyles } from "@mendix/piw-native-utils-internal";
 import { ValueStatus } from "mendix";
-import { ReactElement, useCallback, useMemo, useRef, useState } from "react";
+import { ReactElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, LayoutChangeEvent, Platform } from "react-native";
-import { Camera, useCodeScanner, Code, useCameraDevice, CodeScannerFrame } from "react-native-vision-camera";
+import { Camera, useCameraDevice } from "react-native-vision-camera";
+import { useBarcodeScannerOutput, Barcode, TargetBarcodeFormat } from "react-native-vision-camera-barcode-scanner";
 import BarcodeMask from "./components/BarcodeMask";
 
 import { BarcodeScannerProps } from "../typings/BarcodeScannerProps";
@@ -31,12 +32,33 @@ type OverlapInfo = {
 };
 
 type CandidateCode = {
-    code: Code;
+    code: Barcode;
     isWithinMask: boolean;
     distanceToMaskCenterSquared: number;
     overlapArea: number;
     overlapPercentage: number;
 };
+
+type ScanFrame = {
+    width: number;
+    height: number;
+};
+
+const BARCODE_FORMATS: TargetBarcodeFormat[] = [
+    "qr-code",
+    "aztec",
+    "codabar",
+    "code-39",
+    "code-93",
+    "code-128",
+    "data-matrix",
+    "ean-13",
+    "ean-8",
+    "upc-a",
+    "upc-e",
+    "pdf-417",
+    "itf"
+];
 
 /**
  * Transforms barcode coordinates from camera sensor space to screen view space.
@@ -45,7 +67,7 @@ type CandidateCode = {
  */
 function transformCodeCoordinates(
     codeFrame: { x: number; y: number; width: number; height: number },
-    scanFrame: CodeScannerFrame,
+    scanFrame: ScanFrame,
     viewWidth: number,
     viewHeight: number
 ): TransformedCoordinates {
@@ -150,7 +172,7 @@ export function BarcodeScanner(props: Props): ReactElement {
     const maskHeight = styles.mask.height || 260;
 
     const getCodePositionInfo = useCallback(
-        (code: Code, scanFrame: CodeScannerFrame): CodePositionInfo => {
+        (code: Barcode, scanFrame: ScanFrame | undefined): CodePositionInfo => {
             if (!props.showMask) {
                 return {
                     isWithinMask: true,
@@ -160,7 +182,7 @@ export function BarcodeScanner(props: Props): ReactElement {
                 };
             }
 
-            if (!cameraViewDimensions || !code.frame) {
+            if (!cameraViewDimensions || !scanFrame) {
                 return {
                     isWithinMask: false,
                     distanceToMaskCenterSquared: Number.MAX_SAFE_INTEGER,
@@ -168,6 +190,9 @@ export function BarcodeScanner(props: Props): ReactElement {
                     overlapPercentage: 0
                 };
             }
+
+            const { left, top, right, bottom } = code.boundingBox;
+            const codeFrame = { x: left, y: top, width: right - left, height: bottom - top };
 
             const { width: viewWidth, height: viewHeight } = cameraViewDimensions;
 
@@ -179,7 +204,7 @@ export function BarcodeScanner(props: Props): ReactElement {
 
             // Transform Qr barcode coordinates from camera sensor space to view space
             const { codeX, codeY, codeWidth, codeHeight } = transformCodeCoordinates(
-                code.frame,
+                codeFrame,
                 scanFrame,
                 viewWidth,
                 viewHeight
@@ -218,8 +243,12 @@ export function BarcodeScanner(props: Props): ReactElement {
         [props.showMask, cameraViewDimensions, maskWidth, maskHeight]
     );
 
-    const onCodeScanned = useCallback(
-        (codes: Code[], frame: CodeScannerFrame) => {
+    // The barcode scanner output's currentResolution is a live property (not passed
+    // to onBarcodeScanned), so we read it from the scannerOutput ref on every scan.
+    const scannerOutputRef = useRef<ReturnType<typeof useBarcodeScannerOutput> | undefined>(undefined);
+
+    const onBarcodeScanned = useCallback(
+        (codes: Barcode[]) => {
             // Block if still in cooldown
             if (isLockedRef.current) {
                 return;
@@ -229,9 +258,11 @@ export function BarcodeScanner(props: Props): ReactElement {
                 return;
             }
 
+            const scanFrame = scannerOutputRef.current?.currentResolution;
+
             const candidates = codes
                 .map(code => {
-                    const positionInfo = getCodePositionInfo(code, frame);
+                    const positionInfo = getCodePositionInfo(code, scanFrame);
                     return {
                         code,
                         ...positionInfo
@@ -245,11 +276,11 @@ export function BarcodeScanner(props: Props): ReactElement {
 
             const selectedCode = candidates.sort(compareCodesByPriority)[0].code;
 
-            if (!selectedCode.value) {
+            if (!selectedCode.rawValue) {
                 return;
             }
 
-            const { value } = selectedCode;
+            const { rawValue: value } = selectedCode;
 
             if (value !== props.barcode.value) {
                 props.barcode.setValue(value);
@@ -266,24 +297,14 @@ export function BarcodeScanner(props: Props): ReactElement {
         [props.barcode, props.onDetect, getCodePositionInfo]
     );
 
-    const codeScanner = useCodeScanner({
-        codeTypes: [
-            "qr",
-            "aztec",
-            "codabar",
-            "code-39",
-            "code-93",
-            "code-128",
-            "data-matrix",
-            "ean-13",
-            "ean-8",
-            "upc-a",
-            "upc-e",
-            "pdf-417",
-            "itf"
-        ],
-        onCodeScanned
+    const scannerOutput = useBarcodeScannerOutput({
+        barcodeFormats: BARCODE_FORMATS,
+        onBarcodeScanned,
+        onError: error => console.warn("BarcodeScanner: failed to scan barcodes", error)
     });
+    useEffect(() => {
+        scannerOutputRef.current = scannerOutput;
+    }, [scannerOutput]);
 
     const handleCameraLayout = useCallback((event: LayoutChangeEvent) => {
         const { width, height } = event.nativeEvent.layout;
@@ -295,12 +316,11 @@ export function BarcodeScanner(props: Props): ReactElement {
             {device && (
                 <>
                     <Camera
-                        testID={props.name}
+                        nativeID={props.name}
                         style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-                        audio={false}
                         isActive
                         device={device}
-                        codeScanner={codeScanner}
+                        outputs={[scannerOutput]}
                         onLayout={handleCameraLayout}
                     />
                     {props.showMask && (

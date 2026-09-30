@@ -11,11 +11,20 @@ exports[`BarcodeScanner renders 1`] = `
   }
 >
   <View
-    audio={false}
-    codeScanner="mockCodeScanner"
     device="mock-device"
     isActive={true}
+    nativeID="barcode-scanner-test"
     onLayout={[Function]}
+    outputs={
+      [
+        {
+          "currentResolution": {
+            "height": 1080,
+            "width": 1920,
+          },
+        },
+      ]
+    }
     style={
       {
         "alignItems": "center",
@@ -23,7 +32,6 @@ exports[`BarcodeScanner renders 1`] = `
         "justifyContent": "center",
       }
     }
-    testID="barcode-scanner-test"
   />
 </View>
 `;
@@ -39,11 +47,20 @@ exports[`BarcodeScanner renders with mask 1`] = `
   }
 >
   <View
-    audio={false}
-    codeScanner="mockCodeScanner"
     device="mock-device"
     isActive={true}
+    nativeID="barcode-scanner-test"
     onLayout={[Function]}
+    outputs={
+      [
+        {
+          "currentResolution": {
+            "height": 1080,
+            "width": 1920,
+          },
+        },
+      ]
+    }
     style={
       {
         "alignItems": "center",
@@ -51,7 +68,6 @@ exports[`BarcodeScanner renders with mask 1`] = `
         "justifyContent": "center",
       }
     }
-    testID="barcode-scanner-test"
   />
   <BarcodeMask
     backgroundColor="rgba(0, 0, 0, 0.6)"
@@ -74,11 +90,20 @@ exports[`BarcodeScanner renders with mask with animated line 1`] = `
   }
 >
   <View
-    audio={false}
-    codeScanner="mockCodeScanner"
     device="mock-device"
     isActive={true}
+    nativeID="barcode-scanner-test"
     onLayout={[Function]}
+    outputs={
+      [
+        {
+          "currentResolution": {
+            "height": 1080,
+            "width": 1920,
+          },
+        },
+      ]
+    }
     style={
       {
         "alignItems": "center",
@@ -86,7 +111,6 @@ exports[`BarcodeScanner renders with mask with animated line 1`] = `
         "justifyContent": "center",
       }
     }
-    testID="barcode-scanner-test"
   />
   <BarcodeMask
     backgroundColor="rgba(0, 0, 0, 0.6)"
